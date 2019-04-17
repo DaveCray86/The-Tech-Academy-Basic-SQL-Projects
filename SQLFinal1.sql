@@ -47,6 +47,7 @@ CREATE TABLE Book_Loans (
 	DateDue VARCHAR(50) NOT NULL
 );
 GO
+
 /*-------------------------*/
 /* Insert into statements */
 INSERT INTO Library_Branch
@@ -284,7 +285,7 @@ INSERT INTO Book_Loans
 	(5,1,1007,'7/24/2018', '1/24/2019'),
 	(6,1,1002,'5/08/2017','4/8/2018'),
 	(12,7,1001,'6/13/2017','4/21/2018'),
-	(8,6, 001,'2/10/2016','4/8/2018'),
+	(8,6, 1001,'2/10/2016','4/8/2018'),
 	(6,7,1005,'6/13/2016','4/21/2019'),
 	(18,6,1004,'2/10/2016','4/8/2020'),
 	(5,1,1006,'04/25/2017','04/08/2019'),
@@ -339,46 +340,50 @@ INSERT INTO Book_Loans
 	(12,6,1001,'2/10/2015','4/8/2018')
 ;
 GO
+
 /* Stored Procedures */
 /* #1 How many copies of the book titled "The Lost Tribe" are owned by the library branch whose name 
 is "Sharpstown"? */
 CREATE PROC dbo.uspGetSharpstown100
 AS
-SELECT * 
+SELECT Title, Number_of_Copies, BranchName 
 	FROM Books AS bk
 	INNER JOIN Book_Copies AS bc
 	ON bk.BookID=bc.BookID
 	INNER JOIN Library_Branch AS lb
 	ON bc.BranchID=lb.BranchID
 	WHERE Title  + BranchName = 'The Lost Tribe' + 'Sharpstown'
+GO
 
 /* #2 How many copies of the book titled "The Lost Tribe" are owned by each library branch? */
 CREATE PROC dbo.uspGetLostTribe100
 AS
-SELECT * 
+SELECT Title, Number_of_Copies, BranchName 
 	FROM Book_Copies AS bc
 	INNER JOIN Books AS bk
 	ON bc.BookID=bk.BookID
 	INNER JOIN Library_Branch AS lb
 	ON bc.BranchID=lb.BranchID
 	WHERE Title = 'The Lost Tribe'
+GO
 
 /* #3 Retrieve the names of all borrowers who do not have any books checked out. */
 CREATE PROC dbo.uspGetBorrower100
 AS
-SELECT *
+SELECT Name, DateOut, DateDue
 	FROM Borrower AS br
 	FULL OUTER JOIN Book_Loans AS BC
 	ON br.CardNo = BC.CardNo
 	FULL OUTER JOIN Books AS bk
-	ON BC.BookID=bk.BookID
-	WHERE Name = 'John Smith'
+	ON BC.BookID=bk.BookID	
+	Where DateOut IS NULL and DateDue IS NULL 
+GO
 
 /* #4 For each book that is loaned out from the "Sharpstown" branch and whose DueDate is today, retrieve the 
 book title, the borrower's name, and the borrower's address. */
 CREATE PROC dbo.uspGetSharps100
 AS
-SELECT * 
+SELECT BranchName, DateDue, Title, Name, Addr 
 	FROM Library_Branch AS lb
 	INNER JOIN Book_Loans AS bl
 	ON lb.BranchID=bl.BranchID
@@ -387,32 +392,34 @@ SELECT *
 	INNER JOIN Borrower AS br
 	ON br.CardNo=bl.CardNo
 	WHERE BranchName = 'Sharpstown'
+GO
 
 /* #5 For each library branch, retrieve the branch name and the total number of books loaned out from 
 that branch. */
 CREATE PROC dbo.uspGetBooksBranch100
 AS
-SELECT *
-	FROM Library_Branch AS lb
-	FULL OUTER JOIN Book_Loans AS bl
-	ON lb.BranchID=bl.BranchID
-	ORDER BY BranchName
+SELECT Library_Branch.BranchName, COUNT(Book_Loans.BookID) AS NumBooksOut
+	FROM (Book_Loans 
+	INNER JOIN Library_Branch ON Book_Loans.BranchID=Library_Branch.BranchID) 
+	GROUP BY BranchName
+GO
 
 /* #6 Retrieve the names, addresses, and the number of books checked out for all borrowers who have more than 
 five books checked out. */
 CREATE PROC dbo.uspGetCheckedOut100
 AS
-SELECT *
-	FROM Borrower AS br
-	INNER JOIN Book_Loans AS bl
-	ON br.CardNo=bl.CardNo
-	WHERE BookID > 5
+SELECT Borrower.Name, Borrower.Addr, COUNT(Book_Loans.CardNo) AS LoanedBooks
+	FROM (Book_Loans
+	INNER JOIN Borrower ON Book_Loans.CardNo=Borrower.CardNo)
+	GROUP BY Name, Addr 
+	HAVING COUNT(*) > 5
+GO
 
 /* #7 For each book authored (or co-authored) by "Stephen King", retrieve the title and the number of copies 
 owned by the library branch whose name is "Central". */
 CREATE PROC dbo.uspGetStephenKing100
 AS
-SELECT *
+SELECT AuthorName, BranchName, Number_of_Copies
 	FROM Book_Authors AS ba
 	INNER JOIN Books AS bk
 	ON ba.BookID=bk.BookID
